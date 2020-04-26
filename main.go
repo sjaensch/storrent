@@ -4,10 +4,14 @@ import (
 	"log"
 	"os"
 
-	"github.com/veggiedefender/torrent-client/torrentfile"
+	"github.com/sjaensch/storrent/torrentfile"
 )
 
 func main() {
+	if len(os.Args) != 3 {
+		log.Fatal("expected two arguments: torrent file and save path")
+	}
+
 	inPath := os.Args[1]
 	outPath := os.Args[2]
 

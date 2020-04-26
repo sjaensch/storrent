@@ -1,27 +1,7 @@
-# torrent-client
+# storrent
 
-[![CircleCI](https://circleci.com/gh/veggiedefender/torrent-client.svg?style=shield)](https://circleci.com/gh/veggiedefender/torrent-client)
+This is a small project for learning Go. I've read the excellent [blog post](https://blog.jse.li/posts/torrent/) by Jesse Li about building a BitTorrent client from the ground up in Go. I haven't really done much in Go previously, nor do I know much about the BitTorrent protocol. So this will serve as my playground for learning more about both.
 
-Tiny BitTorrent client written in Go. Read the blog post: https://blog.jse.li/posts/torrent/
+I'm starting off of the minimalistic client Jesse built, and the plan is to improve it. The first task will be to add multi-file torrent support - it currently only supports downloading torrents that contain exactly one file. Afterwards, we'll want to work on the fact that this client is strictly leeching. We need support for uploading data.
 
-## Install
-
-```sh
-go get github.com/veggiedefender/torrent-client
-```
-
-## Usage
-Try downloading [Debian](https://cdimage.debian.org/debian-cd/current/amd64/bt-cd/#indexlist)!
-
-```sh
-torrent-client debian-10.2.0-amd64-netinst.iso.torrent debian.iso
-```
-
-[![asciicast](https://asciinema.org/a/xqRSB0Jec8RN91Zt89rbb9PcL.svg)](https://asciinema.org/a/xqRSB0Jec8RN91Zt89rbb9PcL)
-
-
-## Limitations
-* Only supports `.torrent` files (no magnet links)
-* Only supports HTTP trackers
-* Does not support multi-file torrents
-* Strictly leeches (does not support uploading pieces)
+I highly suspect that I won't even finish these two tasks, as it so often goes with learning projects. However, if I do stick with this project, one thing that always interested me were text-based user interfaces (TUIs). Maybe adding one to this client could be nice. And we'd probably want magnet link support, limiting upload and download bandwidth etc. pp.
