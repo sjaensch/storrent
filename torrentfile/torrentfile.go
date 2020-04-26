@@ -6,13 +6,22 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/jackpal/bencode-go"
-	"github.com/veggiedefender/torrent-client/p2p"
+	"github.com/sjaensch/storrent/p2p"
 )
 
 // Port to listen on
 const Port uint16 = 6881
+
+// FileEntry represents a single file within a multi-file torrent
+type FileEntry struct {
+	Length int
+	Path   string
+	Name   string
+	Md5sum string
+}
 
 // TorrentFile encodes the metadata from a .torrent file
 type TorrentFile struct {
@@ -22,13 +31,22 @@ type TorrentFile struct {
 	PieceLength int
 	Length      int
 	Name        string
+	Entries     []FileEntry
+}
+
+type bencodeFile struct {
+	Length int      `bencode:"length"`
+	Path   []string `bencode:"path"`
+	Md5sum string   `bencode:"md5sum"`
 }
 
 type bencodeInfo struct {
-	Pieces      string `bencode:"pieces"`
-	PieceLength int    `bencode:"piece length"`
-	Length      int    `bencode:"length"`
-	Name        string `bencode:"name"`
+	Pieces      string        `bencode:"pieces"`
+	PieceLength int           `bencode:"piece length"`
+	Length      int           `bencode:"length"`
+	Name        string        `bencode:"name"`
+	Md5sum      string        `bencode:"md5sum"`
+	Files       []bencodeFile `bencode:"files"`
 }
 
 type bencodeTorrent struct {
@@ -133,6 +151,19 @@ func (bto *bencodeTorrent) toTorrentFile() (TorrentFile, error) {
 		PieceLength: bto.Info.PieceLength,
 		Length:      bto.Info.Length,
 		Name:        bto.Info.Name,
+		Entries:     make([]FileEntry, len(bto.Info.Files)),
 	}
+
+	for i, file := range bto.Info.Files {
+		path := bto.Info.Name
+		for j := 0; j < len(file.Path)-1; j++ {
+			path = filepath.Join(path, file.Path[j])
+		}
+		t.Entries[i].Length = file.Length
+		t.Entries[i].Path = path
+		t.Entries[i].Name = file.Path[len(file.Path)-1]
+		t.Entries[i].Md5sum = file.Md5sum
+	}
+
 	return t, nil
 }

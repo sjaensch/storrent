@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/veggiedefender/torrent-client/peers"
+	"github.com/sjaensch/storrent/peers"
 )
 
 func TestBuildTrackerURL(t *testing.T) {
