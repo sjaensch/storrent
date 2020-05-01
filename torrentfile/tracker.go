@@ -1,6 +1,7 @@
 package torrentfile
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -14,6 +15,7 @@ import (
 type bencodeTrackerResp struct {
 	Interval int    `bencode:"interval"`
 	Peers    string `bencode:"peers"`
+	Error    string `bencode:"failure reason"`
 }
 
 func (t *TorrentFile) buildTrackerURL(peerID [20]byte, port uint16) (string, error) {
@@ -51,6 +53,10 @@ func (t *TorrentFile) requestPeers(peerID [20]byte, port uint16) ([]peers.Peer, 
 	err = bencode.Unmarshal(resp.Body, &trackerResp)
 	if err != nil {
 		return nil, err
+	}
+
+	if trackerResp.Error != "" {
+		return nil, fmt.Errorf("Error getting peers from tracker using URL %v: %v", url, trackerResp.Error)
 	}
 
 	return peers.Unmarshal([]byte(trackerResp.Peers))

@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"log"
+	"os"
 	"runtime"
 	"time"
 
@@ -19,6 +20,15 @@ const MaxBlockSize = 16384
 // MaxBacklog is the number of unfulfilled requests a client can have in its pipeline
 const MaxBacklog = 5
 
+// TorrentFile represents a single file within a multi-file torrent
+type TorrentFile struct {
+	Length int
+	Path   string
+	Name   string
+	Md5sum string
+	File   *os.File
+}
+
 // Torrent holds data required to download a torrent from a list of peers
 type Torrent struct {
 	Peers       []peers.Peer
@@ -28,6 +38,7 @@ type Torrent struct {
 	PieceLength int
 	Length      int
 	Name        string
+	Files       []TorrentFile
 }
 
 type pieceWork struct {
@@ -42,12 +53,12 @@ type pieceResult struct {
 }
 
 type pieceProgress struct {
-	index      int
+	index      int // index of the piece
 	client     *client.Client
 	buf        []byte
-	downloaded int
-	requested  int
-	backlog    int
+	downloaded int // number of bytes downloaded, i.e. index into buf to the last downloaded byte + 1
+	requested  int // number of bytes requested for download
+	backlog    int // number of outstanding requests
 }
 
 func (state *pieceProgress) readMessage() error {

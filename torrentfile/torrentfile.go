@@ -57,7 +57,10 @@ type bencodeTorrent struct {
 // DownloadToFile downloads a torrent and writes it to a file
 func (t *TorrentFile) DownloadToFile(path string) error {
 	var peerID [20]byte
-	_, err := rand.Read(peerID[:])
+	version := "stor001"
+	copy(peerID[:], version)
+	_, err := rand.Read(peerID[len(version):])
+
 	if err != nil {
 		return err
 	}
@@ -154,7 +157,9 @@ func (bto *bencodeTorrent) toTorrentFile() (TorrentFile, error) {
 		Entries:     make([]FileEntry, len(bto.Info.Files)),
 	}
 
+	length := 0
 	for i, file := range bto.Info.Files {
+		length += file.Length
 		path := bto.Info.Name
 		for j := 0; j < len(file.Path)-1; j++ {
 			path = filepath.Join(path, file.Path[j])
@@ -163,6 +168,11 @@ func (bto *bencodeTorrent) toTorrentFile() (TorrentFile, error) {
 		t.Entries[i].Path = path
 		t.Entries[i].Name = file.Path[len(file.Path)-1]
 		t.Entries[i].Md5sum = file.Md5sum
+	}
+
+	if length > 0 {
+		if t.Length != 0 && t.Length != length {}
+		t.Length = length
 	}
 
 	return t, nil

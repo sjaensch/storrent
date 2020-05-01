@@ -69,7 +69,7 @@ func TestToTorrentFile(t *testing.T) {
 				Info: bencodeInfo{
 					Pieces:      "1234567890abcdefghijabcdefghij1234567890",
 					PieceLength: 262144,
-					Length:      40968192,
+					Length:      0,
 					Name:        "directoryName",
 					Files: []bencodeFile{
 						{
@@ -87,13 +87,13 @@ func TestToTorrentFile(t *testing.T) {
 			},
 			output: TorrentFile{
 				Announce: "http://tracker.site1.com/announce",
-				InfoHash: [20]byte{86, 63, 132, 40, 206, 46, 13, 86, 232, 206, 75, 45, 229, 143, 164, 153, 8, 46, 68, 18},
+				InfoHash: [20]byte{215, 245, 228, 60, 10, 145, 52, 10, 123, 182, 177, 48, 165, 111, 41, 253, 30, 144, 194, 65},
 				PieceHashes: [][20]byte{
 					{49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106},
 					{97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48},
 				},
 				PieceLength: 262144,
-				Length:      40968192,
+				Length:      333,
 				Name:        "directoryName",
 				Entries: []FileEntry{
 					{
