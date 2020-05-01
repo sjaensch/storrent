@@ -1,6 +1,6 @@
 # storrent
 
-![](https://github.com/sjaensch/storrent/workflows/Go/badge.svg)
+[![Go workflow badge](https://github.com/sjaensch/storrent/workflows/Go/badge.svg)](https://github.com/sjaensch/storrent/actions?query=workflow%3AGo)
 
 This is a small project for learning Go. I've read the excellent [blog post](https://blog.jse.li/posts/torrent/) by Jesse Li about building a BitTorrent client from the ground up in Go. I haven't really done much in Go previously, nor do I know much about the BitTorrent protocol. So this will serve as my playground for learning more about both.
 
