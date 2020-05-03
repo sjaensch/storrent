@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha1"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -57,10 +58,9 @@ type bencodeTorrent struct {
 // DownloadToFile downloads a torrent and writes it to a file
 func (t *TorrentFile) DownloadToFile(path string) error {
 	var peerID [20]byte
-	version := "stor001"
+	version := "-JT0001-"
 	copy(peerID[:], version)
 	_, err := rand.Read(peerID[len(version):])
-
 	if err != nil {
 		return err
 	}
@@ -171,7 +171,9 @@ func (bto *bencodeTorrent) toTorrentFile() (TorrentFile, error) {
 	}
 
 	if length > 0 {
-		if t.Length != 0 && t.Length != length {}
+		if t.Length != 0 && t.Length != length {
+			log.Printf("%s: Torrent length (%d) and sum of file lengths (%d) differ, going to use file lengths", t.Name, t.Length, length)
+		}
 		t.Length = length
 	}
 
