@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/sjaensch/storrent/dht"
 	"github.com/sjaensch/storrent/torrentfile"
 )
 
@@ -19,6 +20,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	dht, err := dht.BootstrapDHT(tf.InfoHash[:])
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Got DHT %v", dht)
 
 	err = tf.DownloadToFile(outPath)
 	if err != nil {
