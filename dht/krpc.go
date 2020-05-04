@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/jackpal/bencode-go"
 )
@@ -66,6 +67,7 @@ func (resp *KRPCFindNodeResponse) toNodes() (int, *Node, error) {
 				IP:   []byte(nodestr[i*26+20 : i*26+24]),
 				Port: int(binary.BigEndian.Uint16([]byte(nodestr[i*26+24 : i*26+26]))),
 			},
+			LastActive: time.Now(),
 		}
 		copy(new.ID[:], []byte(nodestr[i*26:i*26+20]))
 		if cur == nil {
