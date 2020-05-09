@@ -9,10 +9,11 @@ import (
 
 	"github.com/jackpal/bencode-go"
 
-	"github.com/sjaensch/storrent/helpers"
+	"github.com/sjaensch/storrent/err"
 )
 
 const maxNodesPerBucket = 8
+const activePeriod = 15 * time.Minute
 
 var bootstrapNodes = []string{
 	"router.utorrent.com:6881",
@@ -88,10 +89,10 @@ func (dht *DHT) InsertNode(node *Node) error {
 
 	for ; bucketTree.Bucket == nil; bitIndex++ {
 		// if Bucket is nil then we need to have LeftChild and RightChild
-		helpers.Assert(bucketTree.LeftChild != nil && bucketTree.RightChild != nil)
+		err.Assert(bucketTree.LeftChild != nil && bucketTree.RightChild != nil)
 
 		bit = (node.ID[bitIndex/8] >> (7 - (bitIndex % 8))) & 1
-		helpers.Assert(bit == 0 || bit == 1)
+		err.Assert(bit == 0 || bit == 1)
 		if bit == 0 {
 			bucketTree = bucketTree.LeftChild
 		} else {
@@ -99,7 +100,7 @@ func (dht *DHT) InsertNode(node *Node) error {
 		}
 	}
 
-	if bucketTree.Bucket.Count < 8 {
+	if bucketTree.Bucket.Count < 8 || bucketTree.Bucket.makeRoom() || prefixMatch(dht.NodeID[:], node.ID[:], bitIndex) {
 		node.Next = bucketTree.Bucket.Nodes
 		bucketTree.Bucket.Nodes = node
 		bucketTree.Bucket.Count++
@@ -107,22 +108,67 @@ func (dht *DHT) InsertNode(node *Node) error {
 		return nil
 	}
 
-	// check whether all nodes are "good"
-	var last, cur *Node
-	for cur = bucketTree.Bucket.Nodes; cur != nil && cur.LastActive.Add(15*time.Minute).After(time.Now()); cur = cur.Next {
-		last = cur
-		cur = cur.Next
-	}
-	if cur != nil { // TODO
-		removeNode
-		addNode
-	}
-
-	// The prefix matches our ID: we split the bucket
-	// Otherwise: discard the node
 	return nil
 }
 
+// Internal function that will add the Node to bucket, splitting it if necessary.
+func (bucketTree *BucketTree) addNode(node *Node) {
+	err.Assert(bucketTree.Bucket != nil)
+	if bucketTree.Bucket.Count >= maxNodesPerBucket {
+		// split bucket
+		bucketTree.LeftChild = &BucketTree{
+			Level:  bucketTree.Level + 1,
+			Bucket: &Bucket{},
+		}
+		bucketTree.RightChild = &BucketTree{
+			Level:  bucketTree.Level + 1,
+			Bucket: &Bucket{},
+		}
+		idIndex := bucketTree.Level / 8
+		bitMask := byte(1 << (7 - bucketTree.Level%8))
+		for cur := bucketTree.Bucket.Nodes; cur != nil; cur = cur.Next {
+			if cur.ID[idIndex]&bitMask > 0 {
+				bucketTree.RightChild.addNode(cur)
+			} else {
+				bucketTree.LeftChild.addNode(cur)
+			}
+		}
+		bucketTree.Bucket = nil
+	} else {
+		node.Next = bucketTree.Bucket.Nodes
+		bucketTree.Bucket.Nodes = node
+		bucketTree.Bucket.Count++
+		bucketTree.Bucket.LastRefreshed = time.Now()
+	}
+}
+
+// makeRoom removes an unknown (non-Good) node from the bucket if there is one
+func (bucket *Bucket) makeRoom() bool {
+	var last, cur *Node
+	for cur = bucket.Nodes; cur != nil && cur.isGood(); cur = cur.Next {
+		last = cur
+		cur = cur.Next
+	}
+	if cur != nil {
+		// found a non-Good node
+		if last != nil {
+			last.Next = cur.Next
+		} else {
+			// it's the first one, we need to update our pointer to the beginning of the linked list
+			bucket.Nodes = cur.Next
+		}
+		bucket.Count--
+		return true
+	}
+	return false
+}
+
+// isGood returns true if the Node is "good", i.e. has been active in the last activePeriod (usually 15 minutes).
+func (node *Node) isGood() bool {
+	return node.LastActive.Add(activePeriod).After(time.Now())
+}
+
+// FindNode queries the node for other nodes that are close to the given infohash.
 func (node *Node) FindNode(ourID, infohash []byte) (*Node, error) {
 	conn, err := net.DialUDP("udp", &net.UDPAddr{Port: 6881}, node.Address)
 	if err != nil {
@@ -163,4 +209,27 @@ func (node *Node) FindNode(ourID, infohash []byte) (*Node, error) {
 	count, node, err := response.toNodes()
 	log.Printf("Got %d nodes in response", count)
 	return node, nil
+}
+
+// prefixMatch compares the first bitCount bits of the two byte array slices;
+// returns true if they match, false if they don't.
+func prefixMatch(ID1, ID2 []byte, bitCount int) bool {
+	bytesToMatch := bitCount / 8
+	bitsToMatch := bitCount % 8
+	if bytesToMatch > 0 && bytes.Compare(ID1[:bytesToMatch], ID2[:bytesToMatch]) != 0 {
+		return false
+	}
+
+	if bitsToMatch > 0 {
+		// we right-shift as many times as there are bits we don't want to match on,
+		// as we match from the most significant bit down. So if we want to match the
+		// 5 most significant bits then we can just right shift three times, then compare
+		// the two bytes.
+		byte1 := ID1[bytesToMatch] >> (8 - bitsToMatch)
+		byte2 := ID2[bytesToMatch] >> (8 - bitsToMatch)
+		return byte1 == byte2
+	}
+
+	// bytes matched or no bytes to match, plus no bits to match
+	return true
 }
