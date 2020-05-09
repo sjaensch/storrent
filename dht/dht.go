@@ -101,11 +101,9 @@ func (dht *DHT) InsertNode(node *Node) error {
 	}
 
 	if bucketTree.Bucket.Count < 8 || bucketTree.Bucket.makeRoom() || prefixMatch(dht.NodeID[:], node.ID[:], bitIndex) {
-		node.Next = bucketTree.Bucket.Nodes
-		bucketTree.Bucket.Nodes = node
-		bucketTree.Bucket.Count++
-		bucketTree.Bucket.LastRefreshed = time.Now()
-		return nil
+		bucketTree.addNode(node)
+	} else {
+		log.Printf("Not inserting node, bucket is full.")
 	}
 
 	return nil
@@ -114,8 +112,14 @@ func (dht *DHT) InsertNode(node *Node) error {
 // Internal function that will add the Node to bucket, splitting it if necessary.
 func (bucketTree *BucketTree) addNode(node *Node) {
 	err.Assert(bucketTree.Bucket != nil)
-	if bucketTree.Bucket.Count >= maxNodesPerBucket {
-		// split bucket
+
+	node.Next = bucketTree.Bucket.Nodes
+	bucketTree.Bucket.Nodes = node
+	bucketTree.Bucket.Count++
+	bucketTree.Bucket.LastRefreshed = time.Now()
+
+	// are we over capacity now? then split the bucket
+	if bucketTree.Bucket.Count > maxNodesPerBucket {
 		bucketTree.LeftChild = &BucketTree{
 			Level:  bucketTree.Level + 1,
 			Bucket: &Bucket{},
@@ -126,7 +130,10 @@ func (bucketTree *BucketTree) addNode(node *Node) {
 		}
 		idIndex := bucketTree.Level / 8
 		bitMask := byte(1 << (7 - bucketTree.Level%8))
-		for cur := bucketTree.Bucket.Nodes; cur != nil; cur = cur.Next {
+		var next *Node
+		for cur := bucketTree.Bucket.Nodes; cur != nil; cur = next {
+			// cur.Next will be changed in the recursive call, save it now
+			next = cur.Next
 			if cur.ID[idIndex]&bitMask > 0 {
 				bucketTree.RightChild.addNode(cur)
 			} else {
@@ -134,11 +141,6 @@ func (bucketTree *BucketTree) addNode(node *Node) {
 			}
 		}
 		bucketTree.Bucket = nil
-	} else {
-		node.Next = bucketTree.Bucket.Nodes
-		bucketTree.Bucket.Nodes = node
-		bucketTree.Bucket.Count++
-		bucketTree.Bucket.LastRefreshed = time.Now()
 	}
 }
 
