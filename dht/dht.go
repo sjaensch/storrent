@@ -7,8 +7,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/jackpal/bencode-go"
-
 	"github.com/sjaensch/storrent/err"
 )
 
@@ -172,43 +170,16 @@ func (node *Node) isGood() bool {
 
 // FindNode queries the node for other nodes that are close to the given infohash.
 func (node *Node) FindNode(ourID, infohash []byte) (*Node, error) {
-	conn, err := net.DialUDP("udp", &net.UDPAddr{Port: 6881}, node.Address)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
-
 	query := NewKRPCFindNodeQuery(ourID, infohash)
-	bencodeBytes, err := KRPCEncode(query)
-	if err != nil {
-		return nil, err
-	}
-	n, err := conn.Write(bencodeBytes)
-	if err != nil {
-		return nil, err
-	}
-	log.Printf("FindNode query bytes=%d data=%s", n, bencodeBytes)
-
-	deadline := time.Now().Add(5 * time.Second)
-	err = conn.SetReadDeadline(deadline)
-	if err != nil {
-		return nil, err
-	}
-
-	buffer := make([]byte, 4096)
-	nRead, addr, err := conn.ReadFrom(buffer)
-	if err != nil {
-		return nil, err
-	}
-	log.Printf("UDP packet received: bytes=%d from=%s data=%s", nRead, addr.String(), string(buffer))
-
 	response := KRPCFindNodeResponse{}
-	err = bencode.Unmarshal(bytes.NewReader(buffer), &response)
+	err := Request(node, query, &response)
 	if err != nil {
 		return nil, err
 	}
-
 	count, node, err := response.toNodes()
+	if err != nil {
+		return nil, err
+	}
 	log.Printf("Got %d nodes in response", count)
 	return node, nil
 }

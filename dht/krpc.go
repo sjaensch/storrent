@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"net"
+	"reflect"
 	"time"
 
 	"github.com/jackpal/bencode-go"
@@ -50,6 +52,51 @@ type KRPCFindNodeResponse struct {
 type KRPCFindNodeResponseArgs struct {
 	NodeID string `bencode:"id"`
 	Nodes  string `bencode:"nodes"`
+}
+
+// Request sends the given query to the node, putting the reply in response.
+// query must be passed by value, response must be a pointer. This is a requirement
+// by the bencode library. We have no type checking here, so we implement
+// it manually.
+func Request(node *Node, query, response interface{}) error {
+	if reflect.ValueOf(query).Kind() != reflect.Struct {
+		return fmt.Errorf("Need to pass query by value")
+	}
+	if reflect.ValueOf(response).Kind() != reflect.Ptr {
+		return fmt.Errorf("Need to pass response as a pointer")
+	}
+	
+	conn, err := net.DialUDP("udp", &net.UDPAddr{Port: 6881}, node.Address)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	bencodeBytes, err := KRPCEncode(query)
+	if err != nil {
+		return err
+	}
+	n, err := conn.Write(bencodeBytes)
+	if err != nil {
+		return err
+	}
+	log.Printf("KRPC query bytes=%d data=%s", n, bencodeBytes)
+
+	deadline := time.Now().Add(5 * time.Second)
+	err = conn.SetReadDeadline(deadline)
+	if err != nil {
+		return err
+	}
+
+	buffer := make([]byte, 4096)
+	nRead, addr, err := conn.ReadFrom(buffer)
+	if err != nil {
+		return err
+	}
+	log.Printf("UDP packet received: bytes=%d from=%s data=%s", nRead, addr.String(), string(buffer))
+
+	err = bencode.Unmarshal(bytes.NewReader(buffer), response)
+	return err
 }
 
 func (resp *KRPCFindNodeResponse) toNodes() (int, *Node, error) {
